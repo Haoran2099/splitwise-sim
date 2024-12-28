@@ -1,0 +1,266 @@
+hydra:
+  run:
+    dir: ${output_dir}
+  sweep:
+    dir: ''
+    subdir: ${output_dir}
+  launcher:
+    _target_: hydra_plugins.hydra_joblib_launcher.joblib_launcher.JoblibLauncher
+    n_jobs: 4
+    backend: null
+    prefer: processes
+    require: null
+    verbose: 0
+    timeout: null
+    pre_dispatch: 2*n_jobs
+    batch_size: auto
+    temp_folder: null
+    max_nbytes: null
+    mmap_mode: r
+  sweeper:
+    _target_: hydra._internal.core_plugins.basic_sweeper.BasicSweeper
+    max_batch_size: null
+    params:
+      +sweep: range(5, 40, 5)
+      +trace_sweep: range(50, 251, 10)
+      +fname: rr_code,rr_conv
+  help:
+    app_name: ${hydra.job.name}
+    header: '${hydra.help.app_name} is powered by Hydra.
+
+      '
+    footer: 'Powered by Hydra (https://hydra.cc)
+
+      Use --hydra-help to view Hydra specific help
+
+      '
+    template: '${hydra.help.header}
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (group=option)
+
+
+      $APP_CONFIG_GROUPS
+
+
+      == Config ==
+
+      Override anything in the config (foo.bar=value)
+
+
+      $CONFIG
+
+
+      ${hydra.help.footer}
+
+      '
+  hydra_help:
+    template: 'Hydra (${hydra.runtime.version})
+
+      See https://hydra.cc for more info.
+
+
+      == Flags ==
+
+      $FLAGS_HELP
+
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (For example, append hydra/job_logging=disabled
+      to command line)
+
+
+      $HYDRA_CONFIG_GROUPS
+
+
+      Use ''--cfg hydra'' to Show the Hydra config.
+
+      '
+    hydra_help: ???
+  hydra_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][HYDRA] %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+    root:
+      level: INFO
+      handlers:
+      - console
+    loggers:
+      logging_example:
+        level: DEBUG
+    disable_existing_loggers: false
+  job_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        filename: ${hydra.runtime.output_dir}/${hydra.job.name}.log
+    root:
+      level: INFO
+      handlers:
+      - console
+      - file
+    disable_existing_loggers: false
+  env: {}
+  mode: MULTIRUN
+  searchpath: []
+  callbacks: {}
+  output_subdir: .hydra
+  overrides:
+    hydra: []
+    task:
+    - applications.0.scheduler=mixed_pool
+    - +experiment=splitwise_hhcap_isopower
+    - seed=0
+  job:
+    name: run
+    chdir: true
+    override_dirname: +experiment=splitwise_hhcap_isopower,applications.0.scheduler=mixed_pool,seed=0
+    id: ???
+    num: ???
+    config_name: config
+    env_set: {}
+    env_copy: []
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys: []
+  runtime:
+    version: 1.3.2
+    version_base: '1.3'
+    cwd: C:\Users\51706\OneDrive\桌面\2024\中大课程\高级计算机体系结构\splitwise-sim
+    config_sources:
+    - path: hydra.conf
+      schema: pkg
+      provider: hydra
+    - path: C:\Users\51706\OneDrive\桌面\2024\中大课程\高级计算机体系结构\splitwise-sim\configs
+      schema: file
+      provider: main
+    - path: ''
+      schema: structured
+      provider: schema
+    output_dir: ???
+    choices:
+      experiment: splitwise_hhcap_isopower
+      start_state: splitwise_hhcap
+      trace: test_trace
+      applications: solo
+      power_model: constant
+      performance_model: db
+      orchestrator_repo: default
+      model_repo: default
+      hardware_repo: default
+      arbiter: noop
+      router: noop
+      router/overheads: zero
+      cluster: half_half
+      hydra/env: default
+      hydra/callbacks: null
+      hydra/job_logging: default
+      hydra/hydra_logging: default
+      hydra/hydra_help: default
+      hydra/help: default
+      hydra/sweeper: basic
+      hydra/launcher: joblib
+      hydra/output: default
+  verbose: false
+cluster:
+  power_budget: 232000
+  servers:
+  - sku: dgx-h100-pcap
+    count: ${eval:'int(44 * (40 - ${sweep}) // 30.8)'}
+  - sku: dgx-h100
+    count: ${sweep}
+  interconnects:
+  - link: infiniband
+    topology: p2p
+router:
+  overheads:
+    routing_delay: 0
+  _target_: router.NoOpRouter
+arbiter:
+  _target_: arbiter.NoOpArbiter
+  overheads: {}
+hardware_repo:
+  processors: configs/hardware_repo/processors
+  skus: configs/hardware_repo/skus
+  interconnects: configs/hardware_repo/interconnects
+model_repo:
+  architectures: configs/model_repo/architectures
+  sizes: configs/model_repo/sizes
+orchestrator_repo:
+  allocators: configs/orchestrator_repo/allocators
+  schedulers: configs/orchestrator_repo/schedulers
+performance_model:
+  _target_: performance_model.DatabasePerformanceModel
+  db_path: data/perf_model.csv
+power_model:
+  _target_: power_model.ConstantPowerModel
+  idle_power:
+    a100-80gb: 63
+    h100-80gb: 75
+  prompt_power:
+    a100-80gb: 400
+    h100-80gb: 700
+  token_power:
+    a100-80gb: 250
+    h100-80gb: 380
+applications:
+- application_id: 0
+  model_architecture: bloom-176b
+  model_size: bloom-176b-fp16
+  allocator: noop
+  scheduler: mixed_pool
+  overheads: {}
+  debug: ${debug}
+  _target_: application.Application
+trace:
+  dir: traces/
+  filename: ${fname}_${trace_sweep}
+  path: ${trace.dir}/${trace.filename}.csv
+start_state:
+  state_type: splitwisehhcap_${start_state.prompt.num_instances}_${start_state.token.num_instances}
+  application_id: 0
+  split_type: heterogeneous
+  prompt:
+    instance_type: Splitwise
+    max_batch_size: 512
+    max_batch_tokens: 2048
+    max_preemptions: 4
+    pipeline_parallelism: 1
+    tensor_parallelism: 8
+    num_instances: 1
+    instance_names:
+    - dgx-h100
+  token:
+    instance_type: Splitwise
+    max_batch_size: 512
+    max_batch_tokens: 2048
+    max_preemptions: 4
+    pipeline_parallelism: 1
+    tensor_parallelism: 8
+    num_instances: 1
+    instance_names:
+    - dgx-h100-pcap
+end_time: 86400
+debug: false
+seed: 0
+choices: ${hydra:runtime.choices}
+output_dir: results/${seed}/${start_state.state_type}/${trace.filename}/${cluster.servers.0.count}_${cluster.servers.1.count}/${applications.0.model_architecture}/${applications.0.scheduler}
